@@ -1,12 +1,12 @@
 ## 📌 Overview
 
-The **Gamification Algorithm** is part of the **Namma Ward Civic Management System**.  
+The **Gamification & Leaderboard System** is part of the **Namma Ward Civic Management Platform**.  
 It rewards ward officers based on **verified complaint resolution, preventive actions, participation activities, and ward cleanliness**.  
 
 This ensures:  
 - Timely complaint resolution  
-- Motivation for proactive actions  
-- Fair evaluation for all wards  
+- Motivation for proactive and preventive actions  
+- Fair evaluation for wards with different complaint volumes  
 - Transparency through a public leaderboard  
 
 ---
@@ -15,19 +15,21 @@ This ensures:
 
 - Encourage verified and timely complaint resolution  
 - Reward preventive & participation activities  
-- Provide clean ward bonuses  
-- Normalize scores across wards  
-- Update leaderboard in real-time  
+- Provide clean ward bonuses for complaint-free wards  
+- Normalize scores across wards to ensure fairness  
+- Update leaderboard in real-time for motivation and accountability  
 
 ---
 
 ## 🛠 Features
 
-- **Verified Complaint Reward** – Points for citizen-verified resolutions  
+- **Verified Complaint Reward** – Points for citizen-verified complaint resolutions  
 - **Penalty for Delays / Unverified Resolutions** – Points deducted for late or unverified complaints  
 - **Preventive & Participation Points** – Maintenance, awareness drives, weekly login, verify no issues  
-- **Clean Ward Bonus** – Extra points if ward has zero complaints  
-- **Normalized Leaderboard** – Fair ranking across wards of different sizes  
+- **Clean Ward Bonus** – Extra points if ward has zero complaints in the period  
+- **Normalized & Weighted Leaderboard** – Fair ranking across wards of different sizes  
+- **Citizen Feedback Influence** – Upvotes increase points, downvotes decrease points  
+- **Weekly Leaderboard Update** – Combines reactive & proactive points  
 
 ---
 
@@ -40,55 +42,73 @@ def calculate_reward(issue, officer):
         if issue.verified_by_citizen:
             reward = base_points + (priority_score * 2)
             bonus = max(0, (deadline - resolution_time)) * decay_factor
-            officer.points += reward + bonus
+            officer.reactive_points += reward + bonus
         else:
-            penalty = penalty_points + (resolution_time - deadline) * penalty_rate
-            officer.points -= penalty
+            officer.reactive_points -= penalty_points
     else:
-        penalty = penalty_points + (resolution_time - deadline) * penalty_rate
-        officer.points -= penalty
+        penalty = penalty_points + max(0, (resolution_time - deadline)) * decay_factor
+        officer.reactive_points -= penalty
 
 
-2. Preventive Points
+2. Preventive Points:
 def add_preventive_points(officer, activity_type):
     activity_rewards = {
         "maintenance": 15,
         "monthly_report": 20,
         "awareness_drive": 25
     }
-    officer.points += activity_rewards.get(activity_type, 0)
+    officer.proactive_points += activity_rewards.get(activity_type, 0)
 
 
-3. Participation Bonus
+3. Participation Bonus:
 def add_participation_bonus(officer, action):
-    if action == "weekly_login":
-        officer.points += 5
-    elif action == "verify_no_issues":
-        officer.points += 10
+    participation_rewards = {
+        "weekly_login": 5,
+        "verify_no_issues": 10
+    }
+    officer.proactive_points += participation_rewards.get(action, 0)
 
 
-4. Normalize Score
-def normalize_score(officer, ward_avg_complaints):
-    officer.final_score = (officer.points / (ward_avg_complaints + 1)) * 100
-    update_leaderboard(officer.final_score)
+4. Complaint-Free Ward Bonus:
+def add_complaint_free_bonus(officer, ward):
+    if ward.total_complaints_in_period == 0:
+        bonus = 20
+        officer.proactive_points += bonus
+        officer.complaint_free_bonus = bonus
 
 
-📈 Workflow:
-1.Officer resolves a complaint → points calculated based on verification & timeliness
-2.Preventive & participation activities → extra points added
-3.Wards with zero complaints → clean ward bonus applied
-4.Scores normalized → leaderboard updated
-5.Public leaderboard ensures transparency and motivation
+5. Final Score Normalization:
+def calculate_final_score(officer, ward_avg_complaints, proactive_weight=0.6, reactive_weight=0.4):
+    weighted_score = (proactive_weight * officer.proactive_points) + (reactive_weight * officer.reactive_points)
+    officer.final_score = min((weighted_score / (ward_avg_complaints + 1)) * 100, 100)
 
 
-🏆 Benefits:
-1.Motivates officers to resolve complaints efficiently
-2.Encourages proactive maintenance & awareness
-3.Ensures fair evaluation for officers in low-complaint wards
-4.Supports gamified civic management
+6. Weekly Leaderboard Update:
+def update_weekly_leaderboard(officers):
+    for officer in officers:
+        officer.weekly_score = officer.final_score + officer.complaint_free_bonus
+    leaderboard = sorted(officers, key=lambda x: x.weekly_score, reverse=True)
+    return leaderboard
 
 
-💻 Tech Integration:
-1.Backend: Python (Flask or similar)
-2.Integrated with AI-prioritized complaint handling
-3.Leaderboard updates in real-time after each action
+📈 Workflow
+Officer resolves a complaint → points calculated based on verification, priority, and timeliness
+Preventive & participation activities → extra points added to proactive score
+Wards with zero complaints → clean ward bonus applied
+Weighted scores calculated → leaderboard updated
+Citizen upvotes/downvotes influence reactive points
+Weekly leaderboard ensures transparency and officer motivation
+
+🏆 Benefits
+Motivates officers to resolve complaints efficiently
+Encourages proactive maintenance & awareness drives
+Ensures fair evaluation for officers in low-complaint wards
+Supports gamified civic management
+
+Provides public transparency through leaderboard
+
+💻 Tech Integration
+Backend: Python (Flask / FastAPI)
+AI Integration: Prioritizes complaints based on urgency & location
+Leaderboard: Updates in real-time after each action
+Can be extended to React + Tailwind frontend for live dashboards
